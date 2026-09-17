@@ -21,4 +21,5 @@ def test_status_endpoint():
     response = client.get("/status")
     assert response.status_code == 200
     data = response.get_json()
-    assert data["service"] == "projet-devops-groupe-CASSE"
+    assert data["service"] == "projet-devops-groupe-demo"
+    assert data["version"] == "1.0"
