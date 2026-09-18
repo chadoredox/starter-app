@@ -33,7 +33,7 @@ pytest --cov=app -v
 flake8 . --max-line-length=100 --exclude=.venv
 ```
 
-## Suivi de l'atelier (8 étapes)
+## Suivi de l'atelier CI — séance 2 (8 étapes)
 
 - ✅ Étape 1 — Découverte de l'application fournie
 - ✅ Étape 2 — Premier workflow minimal (`actions/checkout` + `actions/setup-python`)
@@ -43,3 +43,34 @@ flake8 . --max-line-length=100 --exclude=.venv
 - ✅ Étape 6 — Cache pip (`hashFiles`) + rapport de couverture en artefact (`if: always()`)
 - ✅ Étape 7 — Protection de branche : checks obligatoires, testée avec PR cassée puis corrigée (PR #1)
 - ✅ Étape 8 — Badge CI + documentation
+
+## Conteneurisation Docker — séance 3
+
+L'application est conteneurisée avec un `Dockerfile` **multi-stage** :
+
+- **Stage `builder`** (image complète `python:3.12`) : installe les dépendances dans un venv isolé (`/opt/venv`), sans cache pip
+- **Stage final** (image `python:3.12-slim`) : ne récupère que le venv via `COPY --from=builder` et le code de l'app — ni compilateurs, ni outils de build, ni cache de paquets
+- Exécution en **utilisateur non-root** (`appuser`, vérifié avec `whoami`)
+- **gunicorn** (serveur WSGI de production) remplace le serveur de dev Flask : `gunicorn --bind 0.0.0.0:5000 app:app`
+- Un `.dockerignore` limite le contexte de build au strict nécessaire (pas de `.venv`, `.git`, caches…)
+
+### Mesure du gain avant / après
+
+Mesure **réelle effectuée sur notre machine** (Docker Desktop 4.87.0, Windows, 18/09/2026), avec les **deux images reconstruites juste avant la mesure** — même contexte de build, mêmes `requirements.txt` — pour une comparaison loyale. Les valeurs exactes dépendent des versions d'images du jour.
+
+| Image | Dockerfile | Taille mesurée |
+|-------|------------|----------------|
+| **Avant** (étapes 1-2) | Une seule étape, `python:3.12` complet, serveur de dev Flask | **1.13 Go** (1 130 953 526 octets) |
+| **Après** (étape 3) | Multi-stage, `python:3.12-slim` + gunicorn | **151 Mo** (150 724 458 octets) |
+
+**Gain : −86.7 % — l'image finale est 7.5× plus légère.**
+
+Reproduction :
+
+```bash
+docker build -t starter-app:apres .
+docker run --rm starter-app:apres whoami     # → appuser (non-root)
+docker run -d -p 5000:5000 starter-app:apres
+curl http://localhost:5000/health            # → {"status":"ok"}
+```
+
