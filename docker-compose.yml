@@ -1,0 +1,34 @@
+# Étape 5 — Orchestration multi-services :
+# web (notre image) + redis (image officielle), un réseau dédié pour que
+# web désigne redis par son nom de service, et un volume nommé pour que
+# les données Redis survivent à l'arrêt des conteneurs.
+
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      # Le service voisin, désigné par son nom sur le réseau dédié —
+      # ni localhost, ni adresse IP fixe
+      REDIS_HOST: redis
+    networks:
+      - app-net
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    # AOF activé : chaque incrément est journalisé, le compteur survit
+    # même à un redémarrage brutal du conteneur redis
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    networks:
+      - app-net
+
+networks:
+  app-net:
+
+volumes:
+  redis-data:
