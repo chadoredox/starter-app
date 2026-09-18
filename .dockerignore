@@ -1,0 +1,30 @@
+# Contexte de build limité au strict nécessaire :
+# tout ce qui est listé ici n'est jamais envoyé au daemon Docker.
+
+# Environnement virtuel local (binaires Windows, inutile et lourd dans l'image)
+.venv/
+
+# Historique Git
+.git/
+.gitignore
+
+# Caches Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Rapports de couverture locaux
+htmlcov/
+.coverage
+
+# Fichiers système et divers
+.DS_Store
+_pr_payload.json
+
+# Configuration CI (utile au dépôt, pas au conteneur)
+.github/
+
+# Fichiers Docker eux-mêmes
+Dockerfile
+docker-compose.yml
+.dockerignore
