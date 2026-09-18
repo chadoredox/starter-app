@@ -1,7 +1,7 @@
-# Étape 5 — Orchestration multi-services :
-# web (notre image) + redis (image officielle), un réseau dédié pour que
-# web désigne redis par son nom de service, et un volume nommé pour que
-# les données Redis survivent à l'arrêt des conteneurs.
+# Étape 6 — Healthcheck & dépendances conditionnées :
+# depends_on seul ne garantit que l'ordre de démarrage, pas que redis
+# soit réellement prêt. Chaque service déclare un healthcheck, et web
+# ne démarre que lorsque redis est passé à l'état healthy.
 
 services:
   web:
@@ -15,7 +15,8 @@ services:
     networks:
       - app-net
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
 
   redis:
     image: redis:7-alpine
@@ -26,6 +27,14 @@ services:
       - redis-data:/data
     networks:
       - app-net
+    # redis-cli est fourni par l'image officielle redis : vérification
+    # simple, sans dépendance externe
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
 
 networks:
   app-net:
