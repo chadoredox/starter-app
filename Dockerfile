@@ -44,3 +44,8 @@ EXPOSE 5000
 # Serveur WSGI de production — jamais le serveur de dev Flask en dehors
 # du poste du développeur
 CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
+
+# Healthcheck : urllib (bibliothèque standard Python) plutôt que curl,
+# absent des images slim — pas de dépendance externe
+HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')" || exit 1
