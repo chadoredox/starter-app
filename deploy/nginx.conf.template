@@ -1,0 +1,11 @@
+events { worker_connections 1024; }
+http {
+    upstream blue  { server app-blue:5000; }
+    upstream green { server app-green:5000; }
+    server {
+        listen 80;
+        location / {
+            proxy_pass http://__COLOR__;
+        }
+    }
+}

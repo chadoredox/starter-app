@@ -1,40 +1,63 @@
-# Étape 6 — Healthcheck & dépendances conditionnées :
-# depends_on seul ne garantit que l'ordre de démarrage, pas que redis
-# soit réellement prêt. Chaque service déclare un healthcheck, et web
-# ne démarre que lorsque redis est passé à l'état healthy.
+# Étape 3 — Environnement blue/green avec docker-compose :
+# - nginx en frontal (toujours démarré), génére sa config depuis un template
+#   en fonction de ACTIVE_COLOR (défaut: blue)
+# - redis partagé (toujours démarré)
+# - app-blue et app-green démarrés ensemble, chacun avec sa couleur en env
+# - la bascule se fait en changeant ACTIVE_COLOR et en rechargant nginx
+#   (nginx -s reload) sans redémarrer les conteneurs
 
 services:
-  web:
-    build: .
+  nginx:
+    image: nginx:alpine
     ports:
-      - "5000:5000"
+      - "8080:80"
     environment:
-      # Le service voisin, désigné par son nom sur le réseau dédié —
-      # ni localhost, ni adresse IP fixe
-      REDIS_HOST: redis
+      - ACTIVE_COLOR=${ACTIVE_COLOR:-blue}
+    volumes:
+      - ./deploy/nginx.conf.template:/etc/nginx/nginx.conf.template:ro
+      - ./deploy/nginx-entrypoint.sh:/entrypoint.sh:ro
+    command: ["/entrypoint.sh"]
     networks:
       - app-net
     depends_on:
-      redis:
-        condition: service_healthy
+      - app-blue
+      - app-green
 
   redis:
     image: redis:7-alpine
-    # AOF activé : chaque incrément est journalisé, le compteur survit
-    # même à un redémarrage brutal du conteneur redis
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis-data:/data
     networks:
       - app-net
-    # redis-cli est fourni par l'image officielle redis : vérification
-    # simple, sans dépendance externe
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 3s
       retries: 3
       start_period: 5s
+
+  app-blue:
+    build: .
+    environment:
+      - COLOR=blue
+      - REDIS_HOST=redis
+    networks:
+      - app-net
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  app-green:
+    build: .
+    environment:
+      - COLOR=green
+      - REDIS_HOST=redis
+    networks:
+      - app-net
+    depends_on:
+      redis:
+        condition: service_healthy
 
 networks:
   app-net:
