@@ -29,7 +29,16 @@ def sanitize_input(value):
 
 @app.route("/health")
 def health():
-    return jsonify(status="ok"), 200
+    """Healthcheck véritable : vérifie la connexion à Redis (PING).
+    Retourne 200 si Redis répond, 503 sinon — afin que les outils de
+    déploiement (ex. deploy.sh) puissent distinguer une version saine
+    d'une version dégradation."""
+    try:
+        client = get_redis_client()
+        client.ping()
+        return jsonify(status="ok"), 200
+    except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError) as exc:
+        return jsonify(status="redis unreachable", error=str(exc)), 503
 
 
 @app.route("/status")
