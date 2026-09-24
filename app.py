@@ -29,7 +29,16 @@ def sanitize_input(value):
 
 @app.route("/health")
 def health():
-    return jsonify(status="ok"), 200
+    """Healthcheck véritable : vérifie la connexion à Redis (PING).
+    Retourne 200 si Redis répond, 503 sinon — afin que les outils de
+    déploiement (ex. deploy.sh) puissent distinguer une version saine
+    d'une version dégradation."""
+    try:
+        client = app.get_redis_client()
+        client.ping()
+        return jsonify(status="ok"), 200
+    except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError) as exc:
+        return jsonify(status="redis unreachable", error=str(exc)), 503
 
 
 @app.route("/status")
@@ -39,10 +48,14 @@ def status():
 
 @app.route("/visits")
 def visits():
-    client = get_redis_client()
+    client = app.get_redis_client()
     count = client.incr("visits")
     return jsonify(visits=count), 200
 
 
 if __name__ == "__main__":
     app.run(debug=True)
+
+# Attacher le helper comme méthode de l'instance app, pour que les tests
+# puissent le mocker facilement avec patch.object(app, "get_redis_client").
+app.get_redis_client = get_redis_client
