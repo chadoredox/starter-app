@@ -33,8 +33,9 @@ pytest --cov=app -v
 flake8 . --max-line-length=100 --exclude=.venv
 ```
 
-## Suivi de l'atelier CI — séance 2 (8 étapes)
+## Suivi de l'atelier CI/CD — séquences 2, 3 et 4
 
+### Séquence 2 — CI (8 étapes)
 - ✅ Étape 1 — Découverte de l'application fournie
 - ✅ Étape 2 — Premier workflow minimal (`actions/checkout` + `actions/setup-python`)
 - ✅ Étape 3 — Déclencheurs push & pull request (push restreint à `master`)
@@ -44,33 +45,32 @@ flake8 . --max-line-length=100 --exclude=.venv
 - ✅ Étape 7 — Protection de branche : checks obligatoires, testée avec PR cassée puis corrigée (PR #1)
 - ✅ Étape 8 — Badge CI + documentation
 
-## Conteneurisation Docker — séance 3
+### Séquence 3 — Docker (6 étapes)
+- ✅ Étape 1 — Premier Dockerfile naïf (single-stage, python:3.12, vérifié avec docker run + curl)
+- ✅ Étape 2 — Utilisateur non-root (`appuser`) + `.dockerignore` (50 MB → 4 KB sur la couche COPY)
+- ✅ Étape 3 — Multi-stage build : `builder` (python:3.12) → `final` (python:3.12-slim, gunicorn)
+- ✅ Étape 4 — Mesure avant/après : 1.13 Go → 151 Mo (−86.7%, ×7.5 plus léger)
+- ✅ Étape 5 — Docker Compose multi-services (`web` + `redis`, réseau `app-net`, volume `redis-data`)
+- ✅ Étape 6 — Healthcheck sur les deux services, `depends_on: condition: service_healthy`
 
-L'application est conteneurisée avec un `Dockerfile` **multi-stage** :
+### Séquence 4 — Pipeline CI/CD bout-en-bout (6 étapes, en cours)
+- ✅ Étape 1 — `/health` vérifie Redis (PING) : 200 si OK, 503 si Redis injoignable
+- ✅ Étape 2 — Job `build-and-push` : construit l'image multi-stage et la pousse sur GHCR
+            avec tag SHA (immuable) + `latest` sur master. Déclenché uniquement par push (pas par PR).
+            Nécessite `permissions: packages: write` activé dans Settings > Actions.
 
-- **Stage `builder`** (image complète `python:3.12`) : installe les dépendances dans un venv isolé (`/opt/venv`), sans cache pip
-- **Stage final** (image `python:3.12-slim`) : ne récupère que le venv via `COPY --from=builder` et le code de l'app — ni compilateurs, ni outils de build, ni cache de paquets
-- Exécution en **utilisateur non-root** (`appuser`, vérifié avec `whoami`)
-- **gunicorn** (serveur WSGI de production) remplace le serveur de dev Flask : `gunicorn --bind 0.0.0.0:5000 app:app`
-- Un `.dockerignore` limite le contexte de build au strict nécessaire (pas de `.venv`, `.git`, caches…)
+## Conteneurisation — détails de l'image finale
 
-### Mesure du gain avant / après
+Le `Dockerfile` multi-stage utilise :
+- **Stage `builder`** : image complète `python:3.12`, installe le venv dans `/opt/venv` avec `--no-cache-dir`
+- **Stage final** : `python:3.12-slim`, recopie uniquement `/opt/venv` + `app.py`, tourne en `appuser`, expose `gunicorn --bind 0.0.0.0:5000`
+- **HEALTHCHECK** : `python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"` — aucune dépendance externe (pas de curl)
 
-Mesure **réelle effectuée sur notre machine** (Docker Desktop 4.87.0, Windows, 18/09/2026), avec les **deux images reconstruites juste avant la mesure** — même contexte de build, mêmes `requirements.txt` — pour une comparaison loyale. Les valeurs exactes dépendent des versions d'images du jour.
-
-| Image | Dockerfile | Taille mesurée |
-|-------|------------|----------------|
-| **Avant** (étapes 1-2) | Une seule étape, `python:3.12` complet, serveur de dev Flask | **1.13 Go** (1 130 953 526 octets) |
-| **Après** (étape 3) | Multi-stage, `python:3.12-slim` + gunicorn | **151 Mo** (150 724 458 octets) |
-
-**Gain : −86.7 % — l'image finale est 7.5× plus légère.**
-
-Reproduction :
-
+Reproduction locale :
 ```bash
-docker build -t starter-app:apres .
-docker run --rm starter-app:apres whoami     # → appuser (non-root)
-docker run -d -p 5000:5000 starter-app:apres
-curl http://localhost:5000/health            # → {"status":"ok"}
+docker compose up -d
+curl http://localhost:5000/health          # → {"status":"ok"}
+curl http://localhost:5000/visits          # → {"visits":N}
+docker compose down
 ```
 
