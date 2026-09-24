@@ -43,7 +43,8 @@ def health():
 
 @app.route("/status")
 def status():
-    return jsonify(service="projet-devops-groupe-demo", version="1.0"), 200
+    color = os.environ.get("COLOR", "unknown")
+    return jsonify(service="projet-devops-groupe-demo", version="1.0", color=color), 200
 
 
 @app.route("/visits")
