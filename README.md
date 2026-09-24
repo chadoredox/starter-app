@@ -58,6 +58,10 @@ flake8 . --max-line-length=100 --exclude=.venv
 - ✅ Étape 2 — Job `build-and-push` : construit l'image multi-stage et la pousse sur GHCR
             avec tag SHA (immuable) + `latest` sur master. Déclenché uniquement par push (pas par PR).
             Nécessite `permissions: packages: write` activé dans Settings > Actions.
+- ✅ Étape 3 — Environnement blue/green : `app-blue` + `app-green` côte à côte, nginx frontal
+            sélectionne la couleur active via `ACTIVE_COLOR` (env var). Bascule saine : les deux
+            versions restent healthy, le routage change sans downtime. Testé : blue → green → blue.
+            `/status` expose le champ `color` pour vérification.
 
 ## Conteneurisation — détails de l'image finale
 
@@ -68,9 +72,17 @@ Le `Dockerfile` multi-stage utilise :
 
 Reproduction locale :
 ```bash
+# Stack simple (web + redis)
 docker compose up -d
 curl http://localhost:5000/health          # → {"status":"ok"}
 curl http://localhost:5000/visits          # → {"visits":N}
+docker compose down
+
+# Stack blue/green (nginx + redis + 2 apps)
+docker compose up -d                        # ACTIVE_COLOR=blue par défaut
+curl http://localhost:8080/status           # → {"color":"blue",...}
+ACTIVE_COLOR=green docker compose up -d nginx  # bascule
+curl http://localhost:8080/status           # → {"color":"green",...}
 docker compose down
 ```
 
