@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 import pytest
 
-from app import app, get_redis_client
+from app import app
 
 
 @pytest.fixture
