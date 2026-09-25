@@ -39,6 +39,7 @@ services:
 
   app-blue:
     build: .
+    image: ghcr.io/chadoredox/starter-app:blue
     environment:
       - COLOR=blue
       - ACTIVE_COLOR=${ACTIVE_COLOR:-blue}
@@ -51,6 +52,7 @@ services:
 
   app-green:
     build: .
+    image: ghcr.io/chadoredox/starter-app:green
     environment:
       - COLOR=green
       - ACTIVE_COLOR=${ACTIVE_COLOR:-blue}
