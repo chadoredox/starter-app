@@ -1,0 +1,42 @@
+name: Deploy to production
+
+on:
+  workflow_run:
+    workflows: ["CI/CD Pipeline"]
+    types: [completed]
+    branches: [master]
+
+# Le job deploy ne s'exécute que si le pipeline CI a réussi.
+# Il ne tourne que sur master (pas sur les PR).
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Compose
+        uses: docker/setup-compose-action@v1
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull latest image from GHCR
+        run: |
+          docker compose -p production pull app-blue app-green
+
+      - name: Deploy with blue/green script
+        run: |
+          export ACTIVE_COLOR=${{ secrets.ACTIVE_COLOR || 'blue' }}
+          chmod +x deploy/deploy.sh
+          # Le script démarre la nouvelle version (pull GHCR), fait le smoke test,
+          # bascule nginx, puis arrête l'ancienne version.
+          bash deploy/deploy.sh
