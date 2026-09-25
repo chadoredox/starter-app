@@ -73,7 +73,35 @@ flake8 . --max-line-length=100 --exclude=.venv
             déclenché à la fin du CI pipeline sur master. Il tire les images GHCR (tag blue/green)
             et exécute `deploy.sh` pour une bascule blue/green en production — zéro downtime.
 
-## Conteneurisation — détails de l'image finale
+### Séquence 5 — Observabilité (Prometheus & Grafana, 8 étapes)
+- ✅ Étape 1 — `Counter http_requests_total` avec labels `method`, `endpoint`, `status`.
+            Hook `after_request` dans `metrics.py` ; l'endpoint `/metrics` est explicitement
+            exclu pour éviter l'auto-incrémentation à chaque scrape Prometheus.
+- ✅ Étape 2 — `Histogram http_request_duration_seconds` avec buckets adaptés
+            (`0.01` → `10.0s`). Un hook `before_request` capture le timestamp de départ.
+            Ajout de l'endpoint `/simulate-error` (toujours 500) pour tester les alertes.
+- ✅ Étape 3 — Configuration Prometheus (`deploy/prometheus/prometheus.yml`) : scrape de
+            `app-blue:5000` avec intervalle de 15s. Chargement des règles d'alerte depuis
+            `/etc/prometheus/alert_rules.yml`. Ajout des services prometheus et grafana
+            dans `docker-compose.yml` avec healthchecks et dépendances.
+- ✅ Étape 4 — Requêtes PromQL validées via l'interface (port 9090) : `rate()`,
+            `sum by (endpoint)`, opérateurs de filtre par status. La différence entre
+            valeur brute du Counter et débit (`rate`) est explicitement documentée.
+- ✅ Étape 5 — Grafana provisionné automatiquement : datasource Prometheus configurée
+            via `deploy/grafana/provisioning/datasources/default.yml` (pas de config manuelle
+            qui disparaîtrait avec `docker compose down -v`). Variable d'environnement
+            `GF_SECURITY_ADMIN_PASSWORD` pour le compte admin.
+- ✅ Étape 6 — Dashboard JSON provisionné (`deploy/grafana/provisioning/dashboards/`) :
+            3 panneaux — débit de requêtes par endpoint, taux d'erreur global
+            (`sum rate 5xx / sum rate total`), latence p95 via
+            `histogram_quantile(0.95, ...)` regroupée par `le` et `endpoint`.
+- ✅ Étape 7 — Règle d'alerte `HighErrorRate` dans `alert_rules.yml` : se déclenche
+            si le ratio d'erreurs 5xx dépasse 5% pendant 30s minimum (`for: 30s`),
+            évitant les faux positifs sur les pics ponctuels. Testée avec trafic mixte
+            entre `/visits` (OK) et `/simulate-error` (500).
+- ✅ Étape 8 — Documentation de la stack observabilité dans ce README.
+
+## Conteneurisation — stack complète (Séquences 4 + 5)
 
 Le `Dockerfile` multi-stage utilise :
 - **Stage `builder`** : image complète `python:3.12`, installe le venv dans `/opt/venv` avec `--no-cache-dir`
