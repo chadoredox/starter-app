@@ -34,8 +34,8 @@ RUN useradd --create-home --shell /bin/bash appuser
 # (pas de pip, pas de cache, pas les outils de l'image complète)
 COPY --from=builder --chown=appuser:appuser /opt/venv /opt/venv
 
-# Strictement nécessaire à l'exécution : le code de l'application
-COPY --chown=appuser:appuser app.py .
+# Strictement nécessaire à l'exécution : le code de l'application + métriques
+COPY --chown=appuser:appuser app.py metrics.py .
 
 USER appuser
 
