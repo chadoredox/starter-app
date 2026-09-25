@@ -62,6 +62,9 @@ flake8 . --max-line-length=100 --exclude=.venv
             sélectionne la couleur active via `ACTIVE_COLOR` (env var). Bascule saine : les deux
             versions restent healthy, le routage change sans downtime. Testé : blue → green → blue.
             `/status` expose le champ `color` pour vérification.
+- ✅ Étape 4 — Script `deploy/deploy.sh` : bascule blue/green automatisée avec smoke test
+            (inspect health du container + appel API direct, bypass nginx) et rollback automatique
+            si la nouvelle version ne passe pas. État persisté dans `deploy/.active-color`.
 
 ## Conteneurisation — détails de l'image finale
 
@@ -81,8 +84,10 @@ docker compose down
 # Stack blue/green (nginx + redis + 2 apps)
 docker compose up -d                        # ACTIVE_COLOR=blue par défaut
 curl http://localhost:8080/status           # → {"color":"blue",...}
-ACTIVE_COLOR=green docker compose up -d nginx  # bascule
+bash deploy/deploy.sh green                 # bascule via script (smoke test + rollback si échec)
 curl http://localhost:8080/status           # → {"color":"green",...}
+bash deploy/deploy.sh blue                  # bascule retour
+bash deploy/deploy.sh                     # sans arg = bascule automatique
 docker compose down
 ```
 
