@@ -5,3 +5,4 @@ __pycache__/
 htmlcov/
 .coverage
 __pycache__/
+.active-color
