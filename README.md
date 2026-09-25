@@ -69,6 +69,9 @@ flake8 . --max-line-length=100 --exclude=.venv
             de l'instance, la couleur active routée par nginx, l'état healthy Redis et le
             compteur de visites. `ACTIVE_COLOR` propagé à tous les conteneurs app dans
             `docker-compose.yml`.
+- ✅ Étape 6 — Déploiement production automatisé : workflow `.github/workflows/deploy.yml`
+            déclenché à la fin du CI pipeline sur master. Il tire les images GHCR (tag blue/green)
+            et exécute `deploy.sh` pour une bascule blue/green en production — zéro downtime.
 
 ## Conteneurisation — détails de l'image finale
 
