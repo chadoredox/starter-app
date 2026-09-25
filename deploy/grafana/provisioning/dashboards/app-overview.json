@@ -1,0 +1,58 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "Débit de requêtes par endpoint",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total[1m])) by (endpoint)",
+          "legendFormat": "{{endpoint}}",
+          "refId": "A"
+        }
+      ],
+      "datasource": { "type": "prometheus", "uid": "Prometheus" }
+    },
+    {
+      "title": "Taux d'erreur global",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{status=~\"5..\"}[1m])) / sum(rate(http_requests_total[1m]))",
+          "legendFormat": "error rate",
+          "refId": "A"
+        }
+      ],
+      "datasource": { "type": "prometheus", "uid": "Prometheus" }
+    },
+    {
+      "title": "Latence p95 par endpoint",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "id": 3,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[1m])) by (le, endpoint))",
+          "legendFormat": "{{endpoint}} p95",
+          "refId": "A"
+        }
+      ],
+      "datasource": { "type": "prometheus", "uid": "Prometheus" }
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["observability"],
+  "templating": { "list": [] },
+  "title": "App Overview",
+  "uid": "app-overview",
+  "version": 1
+}

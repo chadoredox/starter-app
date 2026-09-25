@@ -1,0 +1,11 @@
+groups:
+  - name: app_alerts
+    rules:
+      - alert: HighErrorRate
+        expr: sum(rate(http_requests_total{status=~"5.."}[1m])) by (endpoint) / sum(rate(http_requests_total[1m])) by (endpoint) > 0.05
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Taux d'erreur élevé sur {{ $labels.endpoint }}"
+          description: "Le taux d'erreur est supérieur à 5% depuis plus de 30 secondes."

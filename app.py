@@ -3,7 +3,19 @@ import os
 import redis
 from flask import Flask, jsonify
 
+from metrics import init_metrics
+
 app = Flask(__name__)
+
+# clock() retourne le temps monotone en secondes (flottant)
+try:
+    import time
+    app.clock = lambda: time.monotonic()
+except Exception:
+    import time
+    app.clock = lambda: time.time()
+
+init_metrics(app)
 
 ALERT_THRESHOLD = 25
 
@@ -80,6 +92,12 @@ def deploy_status():
         healthy=healthy,
         visits=visits,
     ), 200
+
+
+@app.route("/simulate-error")
+def simulate_error():
+    """Retourne systématiquement une erreur 500 pour tester les alertes."""
+    return jsonify(error="simulated error"), 500
 
 
 @app.route("/visits")

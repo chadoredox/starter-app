@@ -1,0 +1,13 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "app"
+    static_configs:
+      - targets: ["app-blue:5000"]
+        labels:
+          service: "starter-app"
+
+rule_files:
+  - "/etc/prometheus/alert_rules.yml"
