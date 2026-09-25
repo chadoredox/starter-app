@@ -1,10 +1,9 @@
-# Étape 3 — Environnement blue/green avec docker-compose :
-# - nginx en frontal (toujours démarré), génére sa config depuis un template
-#   en fonction de ACTIVE_COLOR (défaut: blue)
-# - redis partagé (toujours démarré)
-# - app-blue et app-green démarrés ensemble, chacun avec sa couleur en env
-# - la bascule se fait en changeant ACTIVE_COLOR et en rechargant nginx
-#   (nginx -s reload) sans redémarrer les conteneurs
+# Étape 3-5 — Stack observabilité :
+# - nginx en frontal (blue/green), génére sa config depuis un template
+# - redis partagé
+# - app-blue et app-green côte à côte, couleur via ACTIVE_COLOR
+# - prometheus scrape l'app sur /metrics, charge les règles d'alerte
+# - grafana avec datasource Prometheus provisionnée + dashboard provisionné
 
 services:
   nginx:
@@ -62,6 +61,49 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./deploy/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+    networks:
+      - app-net
+    depends_on:
+      - app-blue
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD:-admin}
+    volumes:
+      - ./deploy/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./deploy/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+    networks:
+      - app-net
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
 networks:
   app-net:
