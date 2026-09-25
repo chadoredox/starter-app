@@ -47,6 +47,41 @@ def status():
     return jsonify(service="projet-devops-groupe-demo", version="1.0", color=color), 200
 
 
+@app.route("/deploy/status")
+def deploy_status():
+    """Dashboard de monitoring blue/green.
+
+    Retourne l'état complet du déploiement :
+    - color : couleur de cette instance (blue / green / unknown)
+    - active_color : couleur actuellement routée par nginx
+      (lue depuis ACTIVE_COLOR, défaut blue)
+    - healthy : booléen — True si Redis répond (cette instance est exploitable)
+    - visits : compteur total de visites stocké dans Redis (0 si injoignable)
+    """
+    active_color = os.environ.get("ACTIVE_COLOR", "blue")
+    color = os.environ.get("COLOR", "unknown")
+
+    # Santé Redis et compteur de visites
+    healthy = False
+    visits = None
+    try:
+        client = app.get_redis_client()
+        client.ping()
+        healthy = True
+        visits = client.get("visits")
+        if visits is not None:
+            visits = int(visits)
+    except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError):
+        pass
+
+    return jsonify(
+        color=color,
+        active_color=active_color,
+        healthy=healthy,
+        visits=visits,
+    ), 200
+
+
 @app.route("/visits")
 def visits():
     client = app.get_redis_client()

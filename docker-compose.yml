@@ -41,6 +41,7 @@ services:
     build: .
     environment:
       - COLOR=blue
+      - ACTIVE_COLOR=${ACTIVE_COLOR:-blue}
       - REDIS_HOST=redis
     networks:
       - app-net
@@ -52,6 +53,7 @@ services:
     build: .
     environment:
       - COLOR=green
+      - ACTIVE_COLOR=${ACTIVE_COLOR:-blue}
       - REDIS_HOST=redis
     networks:
       - app-net
