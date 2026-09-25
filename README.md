@@ -65,6 +65,10 @@ flake8 . --max-line-length=100 --exclude=.venv
 - ✅ Étape 4 — Script `deploy/deploy.sh` : bascule blue/green automatisée avec smoke test
             (inspect health du container + appel API direct, bypass nginx) et rollback automatique
             si la nouvelle version ne passe pas. État persisté dans `deploy/.active-color`.
+- ✅ Étape 5 — Endpoint `/deploy/status` : dashboard monitoring blue/green — expose la couleur
+            de l'instance, la couleur active routée par nginx, l'état healthy Redis et le
+            compteur de visites. `ACTIVE_COLOR` propagé à tous les conteneurs app dans
+            `docker-compose.yml`.
 
 ## Conteneurisation — détails de l'image finale
 
@@ -88,6 +92,7 @@ bash deploy/deploy.sh green                 # bascule via script (smoke test + r
 curl http://localhost:8080/status           # → {"color":"green",...}
 bash deploy/deploy.sh blue                  # bascule retour
 bash deploy/deploy.sh                     # sans arg = bascule automatique
+curl http://localhost:8080/deploy/status  # → {"color":"blue","active_color":"blue","healthy":true,"visits":N}
 docker compose down
 ```
 
